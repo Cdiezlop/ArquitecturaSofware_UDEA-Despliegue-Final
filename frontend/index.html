@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Trazabilidad de Sistema</title>
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --primary-hover: #004494;
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --border-color: #e1e4e8;
+            --success-color: #28a745;
+            --pending-color: #ffc107;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding-top: 50px;
+            min-height: 100vh;
+        }
+
+        .dashboard-container {
+            width: 100%;
+            max-width: 850px;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+        }
+
+        header {
+            border-bottom: 2px solid var(--bg-color);
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        p.subtitle {
+            color: var(--text-secondary);
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 12px 15px;
+            font-size: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1);
+        }
+
+        button.btn-add {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        button.btn-add:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button.btn-add:active {
+            transform: scale(0.98);
+        }
+
+        .event-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .event-item {
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: box-shadow 0.2s;
+        }
+
+        .event-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .event-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .event-id {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .event-desc {
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        .status-badge {
+            font-size: 12px;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+        }
+
+        .status-completed {
+            background-color: #d4edda;
+            color: var(--success-color);
+        }
+
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--bg-color);
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <header>
+            <h1>Monitor de Eventos de Arquitectura</h1>
+            <p class="subtitle">Sistema de Trazabilidad de Despliegue - Grupo 02</p>
+        </header>
+
+        <div class="input-group">
+            <input type="text" id="taskInput" placeholder="Ingrese la descripción del evento...">
+            <button class="btn-add" onclick="agregarEvento()">Registrar Evento</button>
+        </div>
+
+        <ul id="listaEventos" class="event-list">
+            <li style="text-align: center; color: var(--text-secondary); padding: 20px;">
+                Conectando con el servidor backend...
+            </li>
+        </ul>
+
+        <footer>
+            &copy; 2025 Universidad de Antioquia - Facultad de Ingeniería
+        </footer>
+    </div>
+
+    <script>
+        // ==========================================
+        // CONFIGURACIÓN DE ENTORNO
+        // ==========================================
+        
+        // CAMBIAR ESTA VARIABLE POR LA IP PÚBLICA DE EC2
+        const BASE_URL = "http://localhost:8080"; 
+        
+        const API_URL = `${BASE_URL}/tareas`;
+
+        async function cargarEventos() {
+            try {
+                const respuesta = await fetch(API_URL);
+                if (!respuesta.ok) throw new Error("Error en la respuesta de red");
+                
+                const datos = await respuesta.json();
+                renderizar(datos);
+            } catch (error) {
+                console.error("Error de conexion:", error);
+                document.getElementById('listaEventos').innerHTML = 
+                '<li style="text-align: center; color: red; padding: 20px;">Error: No se pudo establecer conexión con el Backend.</li>';
+            }
+        }
+
+        function renderizar(lista) {
+            const ul = document.getElementById('listaEventos');
+            ul.innerHTML = '';
+
+            if(lista.length === 0) {
+                ul.innerHTML = '<li style="text-align:center; padding:20px; color: #777;">No hay eventos registrados.</li>';
+                return;
+            }
+
+            lista.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'event-item';
+                const estadoClase = item.completada ? 'status-completed' : 'status-pending';
+                const estadoTexto = item.completada ? 'Completado' : 'Pendiente';
+
+                li.innerHTML = `
+                    <div class="event-info">
+                        <span class="event-id">ID: ${item.id}</span>
+                        <span class="event-desc">${item.descripcion}</span>
+                    </div>
+                    <span class="status-badge ${estadoClase}">${estadoTexto}</span>
+                `;
+                ul.appendChild(li);
+            });
+        }
+
+        async function agregarEvento() {
+            const input = document.getElementById('taskInput');
+            const descripcion = input.value.trim();
+            
+            if(!descripcion) {
+                alert("Por favor ingrese una descripción válida.");
+                return;
+            }
+
+            const nuevoEvento = {
+                descripcion: descripcion,
+                completada: false
+            };
+
+            try {
+                const respuesta = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(nuevoEvento)
+                });
+
+                if (respuesta.ok) {
+                    input.value = '';
+                    cargarEventos();
+                } else {
+                    alert("Error al guardar el evento.");
+                }
+            } catch (error) {
+                console.error("Error al enviar:", error);
+                alert("Error de comunicación con el servidor.");
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', cargarEventos);
+    </script>
+</body>
+</html>
